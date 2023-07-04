@@ -1,4 +1,4 @@
-use std::cmp::max;
+
 
 // ビット番号からi座標を返す
 #[no_mangle]
@@ -41,7 +41,6 @@ pub extern "C" fn empty_squares(player1: u64, player2: u64) -> u64 {
 pub extern "C" fn possible_moves(myself: u64, opponent: u64) -> u64 {
     let blank = empty_squares(myself, opponent);
     let opp = opponent & 0x7E7E7E7E7E7E7E7E;
-    let mut moves = 0;
     let mut flip: u64;
     // 北
     flip = opponent & (myself << 8);
@@ -50,7 +49,7 @@ pub extern "C" fn possible_moves(myself: u64, opponent: u64) -> u64 {
     flip |= opponent & (flip << 8);
     flip |= opponent & (flip << 8);
     flip |= opponent & (flip << 8);
-    moves = flip << 8;
+    let mut moves = flip << 8;
     // 北東
     flip = opp & (myself << 7);
     flip |= opp & (flip << 7);
@@ -292,5 +291,156 @@ pub extern "C" fn openness_evaluation(myself: u64, opponent: u64, turns: u64) ->
     // 開放度に掛ける適当な係数
     const K: i32 = 10;
     -K * openness(myself, opponent, turns)
+}
+
+
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn position_conversion_test() {
+        assert_eq!(0, position_to_index(0, 0));
+        assert_eq!(1, position_to_index(1, 0));
+        assert_eq!(7, position_to_index(7, 0));
+        assert_eq!(8, position_to_index(0, 1));
+        assert_eq!(20, position_to_index(4, 2));
+        assert_eq!(29, position_to_index(5, 3));
+        assert_eq!(46, position_to_index(6, 5));
+        assert_eq!(63, position_to_index(7, 7));
+
+        assert_eq!(0, index_to_position_i(0));
+        assert_eq!(1, index_to_position_i(1));
+        assert_eq!(7, index_to_position_i(7));
+        assert_eq!(0, index_to_position_i(8));
+        assert_eq!(5, index_to_position_i(21));
+        assert_eq!(3, index_to_position_i(27));
+        assert_eq!(4, index_to_position_i(44));
+        assert_eq!(7, index_to_position_i(63));
+
+        assert_eq!(0, index_to_position_j(0));
+        assert_eq!(0, index_to_position_j(7));
+        assert_eq!(1, index_to_position_j(8));
+        assert_eq!(2, index_to_position_j(16));
+        assert_eq!(3, index_to_position_j(30));
+        assert_eq!(4, index_to_position_j(39));
+        assert_eq!(6, index_to_position_j(55));
+        assert_eq!(7, index_to_position_j(63));
+    }
+
+    #[test]
+    fn bit_count_test() {
+        assert_eq!(0, count_bits(0x0000_0000_0000_0000));
+        assert_eq!(1, count_bits(0x0000_0000_0000_0001));
+        assert_eq!(1, count_bits(0x1000_0000_0000_0000));
+        assert_eq!(14, count_bits(0x0A00_C0D0_1E00_0430));
+        assert_eq!(15, count_bits(0x3004_0500_00BD_7008));
+        assert_eq!(32, count_bits(0x0123_4567_89AB_CDEF));
+    }
+
+    #[test]
+    fn possible_move_test() {
+        assert_eq!(0x0000_0804_2010_0000, possible_moves(0x0000_0010_0800_0000, 0x0000_0008_1000_0000));
+        assert_eq!(0x001C_0040_0026_8C00, possible_moves(0x0000_003C_0010_0000, 0x0000_0800_3C48_0000));
+        assert_eq!(0x000D_0442_4024_9C00, possible_moves(0x0000_0038_0412_0000, 0x0000_0A04_3848_0000));
+        assert_eq!(0x005F_4440_4004_FC00, possible_moves(0x0000_101E_1402_0000, 0x0000_2A20_2878_0000));
+        assert_eq!(0x004E_4441_4080_D800, possible_moves(0x0000_1018_0006_0000, 0x0000_2A26_3E78_0000));
+        assert_eq!(0x000D_8181_C181_851B, possible_moves(0x0042_3408_2020_2800, 0x0000_0A76_1E5E_1200));
+        assert_eq!(0x0000_0101_0101_81EF, possible_moves(0x0046_7C78_6000_0000, 0x0000_0206_1E7E_7E10));
+        assert_eq!(0xB021_0080_0100_000A, possible_moves(0x0046_CE0D_2643_F300, 0x0090_3172_D83C_0C14));
+        assert_eq!(0x0000_0020_0028_0000, possible_moves(0x0000_0008_0000_0000, 0x0000_0010_1810_0000));
+        assert_eq!(0x0000_3060_4004_0800, possible_moves(0x0000_0008_0830_0000, 0x0000_0010_3008_0400));
+        assert_eq!(0x0000_3820_0204_201E, possible_moves(0x0000_0008_7822_0000, 0x0000_0012_0418_1C00));
+        assert_eq!(0x0018_0501_0201_0200, possible_moves(0x0000_2A20_2078_0000, 0x0000_101E_1C06_0000));
+        assert_eq!(0x8038_4400_0001_0F00, possible_moves(0x0000_0A26_3E78_0000, 0x0040_3018_0006_0000));
+        assert_eq!(0xC7B9_8180_8000_0000, possible_moves(0x0000_0000_1E7E_7E10, 0x0046_7E7F_6000_0000));
+        assert_eq!(0xC7B9_8080_0181_00EF, possible_moves(0x0000_0102_DA3C_0010, 0x0046_7E7D_2442_FF00));
+        assert_eq!(0x4709_0000_0180_00E2, possible_moves(0x0010_3172_D034_0215, 0x80C6_CE0D_2E4B_FD08));
+        assert_eq!(0x0000_0000_0000_0000, possible_moves(0x0000_7E46_4242_DE02, 0x0000_01B9_3D3D_21FD));
+        assert_eq!(0x0000_0000_0000_0000, possible_moves(0x1236_3232_FC3E_0000, 0x0D09_0D0D_0301_0101));
+        assert_eq!(0x0000_0000_0000_0000, possible_moves(0x0026_3232_FE3E_0202, 0xFF19_0D0D_0101_0101));
+        assert_eq!(0x0000_0000_0000_0000, possible_moves(0x0046_4674_4C4C_7050, 0xFFB9_B98B_B3B3_8F8F));
+        assert_eq!(0x0000_0000_0000_0000, possible_moves(0x487E_4260_4854_7040, 0x8781_BD9F_B7AB_8FBF));
+        assert_eq!(0x0000_0000_0000_0000, possible_moves(0x767E_5B1F_4F17_3300, 0x8180_A4E0_B0E8_CCFF));
+        assert_eq!(0x0000_0000_0000_0000, possible_moves(0x0066_5317_4717_3300, 0xFF98_ACE8_B8E8_CCFF));
+        assert_eq!(0x0000_0000_0000_0000, possible_moves(0x0014_7E00_5E6E_7C00, 0x8181_81FF_A191_0004));
+        assert_eq!(0x0000_0000_0000_0000, possible_moves(0x80FE_CEA2_D2FA_C2BF, 0x7F01_315D_2D05_3D40));
+        assert_eq!(0x0000_0000_0000_0000, possible_moves(0x009F_0264_5010_7800, 0xFF60_FD9B_AFEF_87FF));
+        assert_eq!(0x0000_0000_0000_0000, possible_moves(0x7F01_315D_2D05_3D40, 0x80FE_CEA2_D2FA_C2BF));
+        assert_eq!(0x0000_0000_0000_0000, possible_moves(0xFF60_FD9B_AFEF_87FF, 0x009F_0264_5010_7800));
+    }
+
+    #[test]
+    fn turnover_test() {
+        assert_eq!(0x0000_0000_1000_0000, turnovers(0x0000_0010_0800_0000, 0x0000_0008_1000_0000, position_to_index(5, 3)));
+        assert_eq!(0x0000_0000_0C08_0000, turnovers(0x0000_003C_0010_0000, 0x0000_0800_3C48_0000, position_to_index(2, 2)));
+        assert_eq!(0x0000_0004_0000_0000, turnovers(0x0000_0038_0412_0000, 0x0000_0A04_3848_0000, position_to_index(2, 5)));
+        assert_eq!(0x0000_0020_2000_0000, turnovers(0x0000_101E_1402_0000, 0x0000_2A20_2878_0000, position_to_index(6, 3)));
+        assert_eq!(0x0000_2000_0000_0000, turnovers(0x0000_1018_0006_0000, 0x0000_2A26_3E78_0000, position_to_index(6, 6)));
+        assert_eq!(0x0000_0006_0204_0000, turnovers(0x0042_3408_2020_2800, 0x0000_0A76_1E5E_1200, position_to_index(0, 4)));
+        assert_eq!(0x0000_0000_0804_0200, turnovers(0x0046_7C78_6000_0000, 0x0000_0206_1E7E_7E10, position_to_index(0, 0)));
+        assert_eq!(0x0000_0070_4020_0000, turnovers(0x0046_CE0D_2643_F300, 0x0090_3172_D83C_0C14, position_to_index(7, 4)));
+        assert_eq!(0x0000_0000_1000_0000, turnovers(0x0000_0008_0000_0000, 0x0000_0010_1810_0000, position_to_index(5, 2)));
+        assert_eq!(0x0000_0010_2000_0000, turnovers(0x0000_0008_0830_0000, 0x0000_0010_3008_0400, position_to_index(5, 4)));
+        assert_eq!(0x0000_0000_0018_0000, turnovers(0x0000_0008_7822_0000, 0x0000_0012_0418_1C00, position_to_index(2, 2)));
+        assert_eq!(0x0000_0008_1000_0000, turnovers(0x0000_2A20_2078_0000, 0x0000_101E_1C06_0000, position_to_index(2, 5)));
+        assert_eq!(0x0040_2010_0000_0000, turnovers(0x0000_0A26_3E78_0000, 0x0040_3018_0006_0000, position_to_index(7, 7)));
+        assert_eq!(0x0006_0A12_2000_0000, turnovers(0x0000_0000_1E7E_7E10, 0x0046_7E7F_6000_0000, position_to_index(1, 7)));
+        assert_eq!(0x0000_7E40_2000_0000, turnovers(0x0000_0102_DA3C_0010, 0x0046_7E7D_2442_FF00, position_to_index(7, 5)));
+        assert_eq!(0x0000_0001_0E01_0100, turnovers(0x0010_3172_D034_0215, 0x80C6_CE0D_2E4B_FD08, position_to_index(0, 3)));
+        assert_eq!(0x0000_0000_0000_0000, turnovers(0x487E_4260_4854_7040, 0x8781_BD9F_B7AB_8FBF, position_to_index(5, 7)));
+        assert_eq!(0x0000_0000_0000_0000, turnovers(0x767E_5B1F_4F17_3300, 0x8180_A4E0_B0E8_CCFF, position_to_index(3, 7)));
+        assert_eq!(0x0000_0000_0000_0000, turnovers(0x0066_5317_4717_3300, 0xFF98_ACE8_B8E8_CCFF, position_to_index(0, 6)));
+        assert_eq!(0x0000_0000_0000_0000, turnovers(0x0014_7E00_5E6E_7C00, 0x8181_81FF_A191_0004, position_to_index(3, 6)));
+        assert_eq!(0x0000_0000_0000_0000, turnovers(0x0000_7E46_4242_DE02, 0x0000_01B9_3D3D_21FD, position_to_index(0, 7)));
+        assert_eq!(0x0000_0000_0000_0000, turnovers(0x1236_3232_FC3E_0000, 0x0D09_0D0D_0301_0101, position_to_index(6, 1)));
+        assert_eq!(0x0000_0000_0000_0000, turnovers(0x0026_3232_FE3E_0202, 0xFF19_0D0D_0101_0101, position_to_index(2, 0)));
+        assert_eq!(0x0000_0000_0000_0000, turnovers(0x0046_4674_4C4C_7050, 0xFFB9_B98B_B3B3_8F8F, position_to_index(5, 0)));
+        assert_eq!(0x0000_0000_0000_023E, turnovers(0x487E_4260_4854_7040, 0x8781_BD9F_B7AB_8FBF, position_to_index(0, 0)));
+        assert_eq!(0x0000_0428_2800_0000, turnovers(0x0066_5317_4717_3300, 0xFF98_ACE8_B8E8_CCFF, position_to_index(4, 3)));
+        assert_eq!(0x0000_0038_2C38_0000, turnovers(0x0000_7E46_4242_DE02, 0x0000_01B9_3D3D_21FD, position_to_index(4, 3)));
+        assert_eq!(0x0018_0808_0000_0000, turnovers(0x0026_3232_FE3E_0202, 0xFF19_0D0D_0101_0101, position_to_index(3, 7)));
+        assert_eq!(0x0000_0000_0000_0000, turnovers(0x767E_5B1F_4F17_3300, 0x8180_A4E0_B0E8_CCFF, position_to_index(2, 5)));
+        assert_eq!(0x0000_0000_0000_0000, turnovers(0x0014_7E00_5E6E_7C00, 0x8181_81FF_A191_0004, position_to_index(6, 1)));
+        assert_eq!(0x0000_0000_0000_0000, turnovers(0x1236_3232_FC3E_0000, 0x0D09_0D0D_0301_0101, position_to_index(5, 2)));
+        assert_eq!(0x0000_0000_0000_0000, turnovers(0x0046_4674_4C4C_7050, 0xFFB9_B98B_B3B3_8F8F, position_to_index(7, 0)));
+    }
+
+    #[test]
+    fn board_update_test() {
+        let self_board = 0x00F8_C687_E7AB_C0E4;
+        let opponent_board = 0xFE04_3878_1854_3A18;
+        let mut self_next: u64 = 0;
+        let mut opponent_next: u64 = 0;
+        let turns = place(self_board, opponent_board, position_to_index(0, 0), &mut self_next, &mut opponent_next);
+        assert_eq!(0x00F8_E697_EFAF_C2E5, self_next);
+        assert_eq!(0xFE04_1868_1050_3818, opponent_next);
+        assert_eq!(0x0000_2010_0804_0200, turns);
+
+        let self_board = 0x4000_0810_2C44_6073;
+        let opponent_board = 0xBCFD_F7EF_D3BB_9F8C;
+        let mut self_next: u64 = 0;
+        let mut opponent_next: u64 = 0;
+        let turns = place(self_board, opponent_board, position_to_index(0, 7), &mut self_next, &mut opponent_next);
+        assert_eq!(0x4101_0911_2D45_6173, self_next);
+        assert_eq!(0xBCFC_F6EE_D2BA_9E8C, opponent_next);
+        assert_eq!(0x0001_0101_0101_0100, turns);
+    }
+
+    #[test]
+    fn weight_test() {
+        assert_eq!(0, sum_of_weights(0x0000_0000_0000_0000));
+        assert_eq!(20000, sum_of_weights(0x8000_0000_0000_0001));
+        assert_eq!(100, sum_of_weights(0x0000_0010_0800_0000));
+    }
+
+    #[test]
+    fn openness_test() {
+        assert_eq!(2, openness(0x0000_0008_0828_0000, 0x0000_0010_3010_1000, 0x0000_0000_0010_0000));
+        assert_eq!(5, openness(0x0000_0008_0828_0000, 0x0000_0010_3010_1000, 0x0000_0000_3000_0000));
+    }
 }
 
