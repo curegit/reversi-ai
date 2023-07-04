@@ -1,4 +1,7 @@
+use std::cmp::max;
 
+const INTMAX : i32 = 2147483647;
+const INTMIN : i32 = -2147483647;
 
 // ビット番号からi座標を返す
 #[no_mangle]
@@ -294,7 +297,177 @@ pub extern "C" fn openness_evaluation(myself: u64, opponent: u64, turns: u64) ->
 }
 
 
+// ゲーム木の完全探索のサブルーチン
+fn full_search_sub(myself: u64, opponent: u64, alpha: i32, beta: i32) -> i32 {
+    let moves = possible_moves(myself, opponent);
+    if moves != 0 {
+        let mut alpha = alpha;
+        let mut m = moves;
+        let mut i = 0;
+        //let mut chosen = 0;
+        let mut s: u64 = 0;
+        let mut o: u64 = 0;
+        loop {
+            if m & 0x01 != 0 {
+                place(myself, opponent, i, &mut s, &mut o);
+                let v = -full_search_sub(o, s, -beta, -alpha);
+                if v > alpha {
+                    alpha = v;
+                    if alpha >= beta {
+                        break;
+                    }
+                }
+            }
+            m >>= 1;
+            i += 1;
+            if m == 0 {
+                break;
+            }
+        }
+        alpha
+    } else {
+        if possible_moves(opponent, myself) != 0 {
+            -full_search_sub(opponent, myself, -beta, -alpha)
+        } else {
+            balance(myself, opponent)
+        }
+    }
+}
 
+// ミニマックス戦略に基づいてゲーム木の完全探索をし、最良の手のビット番号を返す
+// 打つ手がない場合は -1 を返す
+#[no_mangle]
+pub extern "C" fn full_search(myself: u64, opponent: u64) -> i32 {
+    let moves = possible_moves(myself, opponent);
+    if moves == 0 {
+        return -1;
+    }
+    let mut alpha = INTMIN;
+    let mut beta = INTMAX;
+    let mut i = 0;
+    let mut chosen = 0;
+    let mut s: u64 = 0;
+    let mut o: u64 = 0;
+    let mut m = moves;
+    loop {
+        if m & 0x01 != 0 {
+            place(myself, opponent, i, &mut s, &mut o);
+            let v = -full_search_sub(o, s, -beta, -alpha);
+            if v > alpha {
+                alpha = v;
+                chosen = i;
+            }
+        }
+        m >>= 1;
+        i += 1;
+        if m == 0 {
+            break;
+        }
+    }
+    chosen
+}
+
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+
+// ゲーム木の部分探索のサブルーチン
+fn heuristic_search_sub(myself: u64, opponent: u64, depth: i32, alpha: i32, beta: i32) -> i32 {
+    const CONFIDENT_VICTORY: i32 = 100_000_000;
+    let moves = possible_moves(myself, opponent);
+    if moves != 0 {
+        if depth != 0 {
+            let mut alpha = alpha;
+            let mut m = moves;
+            let mut i = 0;
+            while m != 0 {
+                if m & 0x01 != 0 {
+                    let mut s: u64 = 0;
+                    let mut o: u64 = 0;
+                    place(myself, opponent, i, &mut s, &mut o);
+                    let v = -heuristic_search_sub(o, s, depth - 1, -beta, -alpha);
+                    if v > alpha {
+                        alpha = v;
+                        if alpha >= beta {
+                            break;
+                        }
+                    }
+                }
+                m >>= 1;
+                i += 1;
+            }
+            alpha
+        } else {
+            evaluation(myself, opponent)
+        }
+    } else {
+        if possible_moves(opponent, myself) != 0 {
+            if depth != 0 {
+                -heuristic_search_sub(opponent, myself, depth - 1, -beta, -alpha)
+            } else {
+                evaluation(myself, opponent)
+            }
+        } else {
+            if balance(myself, opponent) > 0 {
+                CONFIDENT_VICTORY
+            } else {
+                -CONFIDENT_VICTORY
+            }
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn heuristic_search(myself: u64, opponent: u64, depth: i32) -> i32 {
+    // 打てる手がなければ終了
+    let moves = possible_moves(myself, opponent);
+    if moves == 0 {
+        return -1;
+    }
+    // 探索をする
+    let mut alpha = INTMIN;
+    let mut beta = INTMAX;
+    let mut i = 0;
+    let mut chosen = 0;
+    let mut s: u64 = 0;
+    let mut o: u64 = 0;
+    let mut m = moves;
+    loop {
+        if m & 0x01 != 0 {
+            let d = depth - 1;
+            let turns = place(myself, opponent, i, &mut s, &mut o);
+            let v = -heuristic_search_sub(o, s, d, -beta, -alpha) + openness_evaluation(myself, opponent, turns);
+            if v > alpha {
+                alpha = v;
+                chosen = i;
+            }
+        }
+        m >>= 1;
+        i += 1;
+        if m == 0 {
+            break;
+        }
+    }
+    chosen
+}
+
+
+
+
+// ミニマックス戦略に基づいてゲーム木の探索をし、最良と思われる手のビット番号を返す
+// 打つ手がない場合は -1 を返す
+// ゲームの進行度によって部分探索と完全探索を自動で選択する
+// 切り替えのタイミングと、先読みの深さは数秒で結果が返るような値に調整されている
+#[no_mangle]
+pub extern "C" fn choose_move(myself: u64, opponent: u64) -> i32 {
+    let occu = count_bits(myself | opponent);
+    if occu > 50 {
+        return full_search(myself, opponent);
+    } else {
+        let move_count = max(count_bits(possible_moves(myself, opponent)), count_bits(possible_moves(opponent, myself)));
+        return heuristic_search(myself, opponent, if move_count > 8 { 5 } else { 7 });
+    }
+}
 
 
 #[cfg(test)]
@@ -442,5 +615,18 @@ mod tests {
         assert_eq!(2, openness(0x0000_0008_0828_0000, 0x0000_0010_3010_1000, 0x0000_0000_0010_0000));
         assert_eq!(5, openness(0x0000_0008_0828_0000, 0x0000_0010_3010_1000, 0x0000_0000_3000_0000));
     }
+
+    #[test]
+    fn full_search_test() {
+        assert_eq!(position_to_index(0, 7), full_search(0x4000_0810_2C44_6073, 0xBCFD_F7EF_D3BB_9F8C));
+        assert_eq!(position_to_index(1, 1), full_search(0xFE04_3878_1850_3818, 0x00F8_C687_E7AF_C0E4));
+        assert_eq!(position_to_index(0, 7), full_search(0x8080_908F_B388_9C80, 0x7E7C_6F70_4C77_637F));
+        assert_eq!(position_to_index(1, 6), full_search(0x0010_6341_6D29_0721, 0xBCAC_9CBE_92D6_381E));
+    }
+
+    #[test]
+fn heuristic_search_test() {
+    assert_eq!(position_to_index(4, 0), heuristic_search(0x0000_0000_0010_0804, 0x0000_1038_7E6C_3020, 9));
 }
 
+}
