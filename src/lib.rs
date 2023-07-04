@@ -1,4 +1,3 @@
-use crossbeam_utils::sync::WaitGroup;
 use std::cmp::max;
 use std::thread;
 

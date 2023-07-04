@@ -1,0 +1,16 @@
+[package]
+name = "reversi-ai"
+authors = ["curegit"]
+version = "1.0.0"
+edition = "2021"
+license = "Apache-2.0"
+readme = "README.md"
+publish = false
+
+[lib]
+name = "ReversiAiDll"
+crate-type = ["cdylib"]
+doc = false
+
+[dependencies]
+num_cpus = "1.16.0"
