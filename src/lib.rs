@@ -634,10 +634,14 @@ pub extern "C" fn heuristic_search_parallel_with(
 
     let mut m = moves;
 
-    let rev_x = std::thread::scope(|scope| {
+    let rev_x = thread::scope(|scope| {
         //let mut handles = Vec::new();
         //let args = Arc::new(Mutex::new(Vec::new()));
         let mut handles = Vec::new();
+
+        let (sc, rc) = mpsc::channel();
+
+        let mut k = 0;
 
         loop {
             if m & 0x01 != 0 {
@@ -647,11 +651,21 @@ pub extern "C" fn heuristic_search_parallel_with(
 
                 let opns = openness_evaluation(myself, opponent, turns);
 
+                if k >= concurrency {
+                    rc.recv().unwrap();
+                } else {
+                    k += 1;
+                }
+
+                let sc = sc.clone();
+
                 let handle1 = scope.spawn(move || {
                     let alpha: i32 = INTMIN;
                     let beta: i32 = INTMAX;
                     //-full_search_sub(o, s, -beta, -alpha)
-                    -heuristic_search_sub(o, s, depth - 1, -beta, -alpha) + opns
+                    let r = -heuristic_search_sub(o, s, depth - 1, -beta, -alpha) + opns;
+                    sc.send(()).unwrap();
+                    r
                 });
 
                 handles.push((i, handle1));
