@@ -329,15 +329,14 @@ pub extern "C" fn sum_of_weights(disks: u64) -> i32 {
         1120, -180, 620, 360, 1160, -140, 660, 370, 1170, -130, 670, 360, 1160, -140, 660, 370,
         1170, -130, 670, 410, 1210, -90, 710, 420, 1220, -80, 720,
     ];
-    let w = W1[(disks & 0xFF) as usize]
+    W1[(disks & 0xFF) as usize]
         + W2[((disks >> 8) & 0xFF) as usize]
         + W3[((disks >> 16) & 0xFF) as usize]
         + W4[((disks >> 24) & 0xFF) as usize]
         + W4[((disks >> 32) & 0xFF) as usize]
         + W3[((disks >> 40) & 0xFF) as usize]
         + W2[((disks >> 48) & 0xFF) as usize]
-        + W1[(disks >> 56) as usize];
-    w
+        + W1[(disks >> 56) as usize]
 }
 
 // myselfプレイヤーに有利なほど大きな数が返る静的評価関数
@@ -383,10 +382,10 @@ fn full_search_sub(myself: u64, opponent: u64, alpha: i32, beta: i32) -> i32 {
         let mut alpha = alpha;
         let mut m = moves;
         let mut i = 0;
-        let mut s: u64 = 0;
-        let mut o: u64 = 0;
         loop {
             if m & 0x01 != 0 {
+                let mut s: u64 = 0;
+                let mut o: u64 = 0;
                 place(myself, opponent, i, &mut s, &mut o);
                 let v = -full_search_sub(o, s, -beta, -alpha);
                 if v > alpha {
@@ -422,13 +421,13 @@ pub extern "C" fn full_search(myself: u64, opponent: u64) -> i32 {
     }
     let mut alpha = INTMIN;
     let beta = INTMAX;
+    let mut m = moves;
     let mut i = 0;
     let mut chosen = 0;
-    let mut s: u64 = 0;
-    let mut o: u64 = 0;
-    let mut m = moves;
     loop {
         if m & 0x01 != 0 {
+            let mut s: u64 = 0;
+            let mut o: u64 = 0;
             place(myself, opponent, i, &mut s, &mut o);
             let v = -full_search_sub(o, s, -beta, -alpha);
             if v > alpha {
@@ -455,61 +454,35 @@ pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurre
     if moves == 0 {
         return -1;
     }
-
     // 探索をする
     let mut alpha = INTMIN;
+    let mut m = moves;
     let mut i = 0;
     let mut chosen = 0;
-
-    let mut m = moves;
-
-    let rev_x = thread::scope(|scope| {
-        //let mut handles = Vec::new();
-        //let args = Arc::new(Mutex::new(Vec::new()));
+    let result = thread::scope(|scope| {
         let mut handles = Vec::new();
-
-        //let wg = WaitGroup::new();
-        let (sc, rc) = mpsc::channel();
-
+        let (sender, receiver) = mpsc::channel();
         let mut k = 0;
-
         loop {
             if m & 0x01 != 0 {
                 let mut s: u64 = 0;
                 let mut o: u64 = 0;
                 place(myself, opponent, i, &mut s, &mut o);
-
                 if k >= concurrency {
-                    rc.recv().unwrap();
+                    receiver.recv().unwrap();
                 } else {
                     k += 1;
                 }
-
-                let sc = sc.clone();
-
-                //let mut args = args.lock().unwrap();
-                //args.push(s);
-                //args.push(o);
-                //if handles.len() == concurrency as usize {
-                //    let handle = handles.remove(0);
-                //    handle.join().unwrap();
-                //}
-
-                //let wg = wg.clone();
-
+                let sender = sender.clone();
                 // 完全探索のスレッド関数
                 let handle = scope.spawn(move || {
                     let alpha: i32 = INTMIN;
                     let beta: i32 = INTMAX;
                     let value = -full_search_sub(o, s, -beta, -alpha);
-                    sc.send(()).unwrap();
+                    sender.send(()).unwrap();
                     value
                 });
-
                 handles.push((i, handle));
-
-                //let handle = thread::spawn(move || full_search_thread(&args));
-                //handles.push(handle);
             }
             m >>= 1;
             i += 1;
@@ -520,17 +493,14 @@ pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurre
         // スレッドから結果を回収する
         for (i, handle) in handles {
             let v = handle.join().unwrap();
-
             if v > alpha {
                 alpha = v;
                 chosen = i;
             }
         }
-
         chosen
     });
-
-    rev_x
+    result
 }
 
 // ミニマックス戦略に基づいてゲーム木の完全探索をし、最良の手のビット番号を返す
@@ -550,10 +520,10 @@ fn heuristic_search_sub(myself: u64, opponent: u64, depth: i32, alpha: i32, beta
             let mut alpha = alpha;
             let mut m = moves;
             let mut i = 0;
-            let mut s: u64 = 0;
-            let mut o: u64 = 0;
             loop {
                 if m & 0x01 != 0 {
+                    let mut s: u64 = 0;
+                    let mut o: u64 = 0;
                     place(myself, opponent, i, &mut s, &mut o);
                     let v = -heuristic_search_sub(o, s, depth - 1, -beta, -alpha);
                     if v > alpha {
@@ -600,14 +570,14 @@ pub extern "C" fn heuristic_search(myself: u64, opponent: u64, depth: i32) -> i3
     // 探索をする
     let mut alpha = INTMIN;
     let beta = INTMAX;
+    let mut m = moves;
     let mut i = 0;
     let d = depth - 1;
     let mut chosen = 0;
-    let mut s: u64 = 0;
-    let mut o: u64 = 0;
-    let mut m = moves;
     loop {
         if m & 0x01 != 0 {
+            let mut s: u64 = 0;
+            let mut o: u64 = 0;
             let turns = place(myself, opponent, i, &mut s, &mut o);
             let v = -heuristic_search_sub(o, s, d, -beta, -alpha)
                 + openness_evaluation(myself, opponent, turns);
@@ -643,46 +613,33 @@ pub extern "C" fn heuristic_search_parallel_with(
     }
     // 探索をする
     let mut alpha = INTMIN;
+    let mut m = moves;
     let mut i = 0;
     let mut chosen = 0;
-
-    let mut m = moves;
-
-    let rev_x = thread::scope(|scope| {
-        //let mut handles = Vec::new();
-        //let args = Arc::new(Mutex::new(Vec::new()));
+    let result = thread::scope(|scope| {
         let mut handles = Vec::new();
-
-        let (sc, rc) = mpsc::channel();
-
+        let (sender, receiver) = mpsc::channel();
         let mut k = 0;
-
         loop {
             if m & 0x01 != 0 {
                 let mut s: u64 = 0;
                 let mut o: u64 = 0;
                 let turns = place(myself, opponent, i, &mut s, &mut o);
-
                 let opns = openness_evaluation(myself, opponent, turns);
-
                 if k >= concurrency {
-                    rc.recv().unwrap();
+                    receiver.recv().unwrap();
                 } else {
                     k += 1;
                 }
-
-                let sc = sc.clone();
-
-                let handle1 = scope.spawn(move || {
+                let sender = sender.clone();
+                let handle = scope.spawn(move || {
                     let alpha: i32 = INTMIN;
                     let beta: i32 = INTMAX;
-                    //-full_search_sub(o, s, -beta, -alpha)
-                    let r = -heuristic_search_sub(o, s, depth - 1, -beta, -alpha) + opns;
-                    sc.send(()).unwrap();
-                    r
+                    let value = -heuristic_search_sub(o, s, depth - 1, -beta, -alpha) + opns;
+                    sender.send(()).unwrap();
+                    value
                 });
-
-                handles.push((i, handle1));
+                handles.push((i, handle));
             }
             m >>= 1;
             i += 1;
@@ -693,7 +650,6 @@ pub extern "C" fn heuristic_search_parallel_with(
         // スレッドから結果を回収する
         for (i, handle) in handles {
             let v = handle.join().unwrap();
-
             if v > alpha {
                 alpha = v;
                 chosen = i;
@@ -701,7 +657,7 @@ pub extern "C" fn heuristic_search_parallel_with(
         }
         chosen
     });
-    rev_x
+    result
 }
 
 // ミニマックス戦略に基づいてゲーム木の部分探索をし、最良と思われる手のビット番号を返す
