@@ -462,18 +462,30 @@ pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurre
 
     let mut m = moves;
 
-    let rev_x = std::thread::scope(|scope| {
+    let rev_x = thread::scope(|scope| {
         //let mut handles = Vec::new();
         //let args = Arc::new(Mutex::new(Vec::new()));
         let mut handles = Vec::new();
 
         //let wg = WaitGroup::new();
+        let (sc, rc) = mpsc::channel();
+
+        let mut k = 0;
 
         loop {
             if m & 0x01 != 0 {
                 let mut s: u64 = 0;
                 let mut o: u64 = 0;
                 place(myself, opponent, i, &mut s, &mut o);
+
+
+                if k >= concurrency {
+                    rc.recv().unwrap();
+                } else {
+                    k += 1;
+                }
+
+                let sc = sc.clone();
 
                 //let mut args = args.lock().unwrap();
                 //args.push(s);
@@ -489,7 +501,9 @@ pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurre
                 let handle = scope.spawn(move || {
                     let alpha: i32 = INTMIN;
                     let beta: i32 = INTMAX;
-                    -full_search_sub(o, s, -beta, -alpha)
+                    let value = -full_search_sub(o, s, -beta, -alpha);
+                    sc.send(()).unwrap();
+                    value
                 });
 
                 handles.push((i, handle));
