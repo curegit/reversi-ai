@@ -1,4 +1,5 @@
 use std::cmp::max;
+use std::sync::mpsc;
 use std::thread;
 
 const INTMAX: i32 = 2147483647;
@@ -35,8 +36,7 @@ pub extern "C" fn position_to_bit(i: i32, j: i32) -> u64 {
 }
 
 // 空いているマスのビットボード表現を返す
-#[no_mangle]
-pub extern "C" fn empty_squares(player1: u64, player2: u64) -> u64 {
+fn empty_squares(player1: u64, player2: u64) -> u64 {
     !(player1 | player2)
 }
 
@@ -111,6 +111,7 @@ pub extern "C" fn possible_moves(myself: u64, opponent: u64) -> u64 {
     flip |= opp & (flip << 9);
     flip |= opp & (flip << 9);
     moves |= flip << 9;
+    // 結果
     moves & blank
 }
 
@@ -210,7 +211,7 @@ pub extern "C" fn can_place(myself: u64, opponent: u64, index: i32) -> i32 {
     (possible_moves(myself, opponent) & index_to_bit(index) != 0) as i32
 }
 
-// myselfプレイヤーがindex地点に打ったときに得られる盤を間接参照によって代入し、返した石のビットボード表現を返す
+// myselfプレイヤーがindex地点に打ったときに得られる盤を可変参照によって代入し、返した石のビットボード表現を返す
 #[no_mangle]
 pub extern "C" fn place(
     myself: u64,
@@ -353,8 +354,8 @@ pub extern "C" fn evaluation(myself: u64, opponent: u64) -> i32 {
 #[no_mangle]
 pub extern "C" fn openness(myself: u64, opponent: u64, turns: u64) -> i32 {
     let blank = empty_squares(myself, opponent);
-    let blae = blank & 0x7F7F_7F7F_7F7F_7F7F;
-    let blaw = blank & 0xFEFE_FEFE_FEFE_FEFE;
+    let blae = blank & 0x7F7F7F7F7F7F7F7F;
+    let blaw = blank & 0xFEFEFEFEFEFEFEFE;
     let mut o = 0;
     o += count_bits((turns << 8) & blank);
     o += count_bits((turns << 7) & blae);
@@ -420,7 +421,7 @@ pub extern "C" fn full_search(myself: u64, opponent: u64) -> i32 {
         return -1;
     }
     let mut alpha = INTMIN;
-    let mut beta = INTMAX;
+    let beta = INTMAX;
     let mut i = 0;
     let mut chosen = 0;
     let mut s: u64 = 0;
@@ -477,7 +478,6 @@ pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurre
                 let mut s: u64 = 0;
                 let mut o: u64 = 0;
                 place(myself, opponent, i, &mut s, &mut o);
-
 
                 if k >= concurrency {
                     rc.recv().unwrap();
@@ -537,23 +537,23 @@ pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurre
 // 打つ手がない場合は -1 を返す
 #[no_mangle]
 pub extern "C" fn full_search_parallel(myself: u64, opponent: u64) -> i32 {
-    let cpu_count = num_cpus::get();
-    full_search_parallel_with(myself, opponent, cpu_count as i32)
+    let cpu_count = num_cpus::get() as i32;
+    full_search_parallel_with(myself, opponent, cpu_count)
 }
 
 // ゲーム木の部分探索のサブルーチン
 fn heuristic_search_sub(myself: u64, opponent: u64, depth: i32, alpha: i32, beta: i32) -> i32 {
-    const CONFIDENT_VICTORY: i32 = 100_000_000;
+    const CONFIDENT_VICTORY: i32 = 100000000;
     let moves = possible_moves(myself, opponent);
     if moves != 0 {
         if depth != 0 {
             let mut alpha = alpha;
             let mut m = moves;
             let mut i = 0;
+            let mut s: u64 = 0;
+            let mut o: u64 = 0;
             loop {
                 if m & 0x01 != 0 {
-                    let mut s: u64 = 0;
-                    let mut o: u64 = 0;
                     place(myself, opponent, i, &mut s, &mut o);
                     let v = -heuristic_search_sub(o, s, depth - 1, -beta, -alpha);
                     if v > alpha {
@@ -599,15 +599,15 @@ pub extern "C" fn heuristic_search(myself: u64, opponent: u64, depth: i32) -> i3
     }
     // 探索をする
     let mut alpha = INTMIN;
-    let mut beta = INTMAX;
+    let beta = INTMAX;
     let mut i = 0;
+    let d = depth - 1;
     let mut chosen = 0;
     let mut s: u64 = 0;
     let mut o: u64 = 0;
     let mut m = moves;
     loop {
         if m & 0x01 != 0 {
-            let d = depth - 1;
             let turns = place(myself, opponent, i, &mut s, &mut o);
             let v = -heuristic_search_sub(o, s, d, -beta, -alpha)
                 + openness_evaluation(myself, opponent, turns);
@@ -775,6 +775,7 @@ mod tests {
 
     #[test]
     fn position_conversion_test() {
+        // 位置座標からビット番号への変換テスト
         assert_eq!(0, position_to_index(0, 0));
         assert_eq!(1, position_to_index(1, 0));
         assert_eq!(7, position_to_index(7, 0));
@@ -783,7 +784,7 @@ mod tests {
         assert_eq!(29, position_to_index(5, 3));
         assert_eq!(46, position_to_index(6, 5));
         assert_eq!(63, position_to_index(7, 7));
-
+        // ビット番号からi座標を取り出すテスト
         assert_eq!(0, index_to_position_i(0));
         assert_eq!(1, index_to_position_i(1));
         assert_eq!(7, index_to_position_i(7));
@@ -792,7 +793,7 @@ mod tests {
         assert_eq!(3, index_to_position_i(27));
         assert_eq!(4, index_to_position_i(44));
         assert_eq!(7, index_to_position_i(63));
-
+        // ビット番号からj座標を取り出すテスト
         assert_eq!(0, index_to_position_j(0));
         assert_eq!(0, index_to_position_j(7));
         assert_eq!(1, index_to_position_j(8));
@@ -815,6 +816,7 @@ mod tests {
 
     #[test]
     fn possible_move_test() {
+        // 普通に置けるとき
         assert_eq!(
             0x0000_0804_2010_0000,
             possible_moves(0x0000_0010_0800_0000, 0x0000_0008_1000_0000)
@@ -879,6 +881,7 @@ mod tests {
             0x4709_0000_0180_00E2,
             possible_moves(0x0010_3172_D034_0215, 0x80C6_CE0D_2E4B_FD08)
         );
+        // パスが発生するとき（どこにも置けないとき）
         assert_eq!(
             0x0000_0000_0000_0000,
             possible_moves(0x0000_7E46_4242_DE02, 0x0000_01B9_3D3D_21FD)
@@ -911,6 +914,7 @@ mod tests {
             0x0000_0000_0000_0000,
             possible_moves(0x0014_7E00_5E6E_7C00, 0x8181_81FF_A191_0004)
         );
+        // 盤が埋まっているとき
         assert_eq!(
             0x0000_0000_0000_0000,
             possible_moves(0x80FE_CEA2_D2FA_C2BF, 0x7F01_315D_2D05_3D40)
@@ -931,6 +935,7 @@ mod tests {
 
     #[test]
     fn turnover_test() {
+        // 普通に置くとき
         assert_eq!(
             0x0000_0000_1000_0000,
             turnovers(
@@ -1059,6 +1064,7 @@ mod tests {
                 position_to_index(0, 3)
             )
         );
+        // 1つも返せない位置に置くとき（本来は置けない位置に置く）
         assert_eq!(
             0x0000_0000_0000_0000,
             turnovers(
@@ -1123,6 +1129,7 @@ mod tests {
                 position_to_index(5, 0)
             )
         );
+        // すでに石で埋まっている位置に置くとき（本来は置けない位置に置く）
         assert_eq!(
             0x0000_0000_0000_023E,
             turnovers(
@@ -1155,6 +1162,7 @@ mod tests {
                 position_to_index(3, 7)
             )
         );
+        // 1つも返せない且つすでに石で埋まっている位置に置く（本来は置けない位置に置く）
         assert_eq!(
             0x0000_0000_0000_0000,
             turnovers(
@@ -1267,7 +1275,6 @@ mod tests {
             position_to_index(1, 6),
             full_search(0x0010_6341_6D29_0721, 0xBCAC_9CBE_92D6_381E)
         );
-
         assert_eq!(
             position_to_index(0, 7),
             full_search_parallel(0x4000_0810_2C44_6073, 0xBCFD_F7EF_D3BB_9F8C)
@@ -1292,7 +1299,6 @@ mod tests {
             position_to_index(4, 0),
             heuristic_search(0x0000_0000_0010_0804, 0x0000_1038_7E6C_3020, 9)
         );
-
         assert_eq!(
             position_to_index(4, 0),
             heuristic_search_parallel(0x0000_0000_0010_0804, 0x0000_1038_7E6C_3020, 9)
