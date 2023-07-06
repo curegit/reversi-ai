@@ -446,7 +446,7 @@ pub extern "C" fn full_search(myself: u64, opponent: u64) -> i32 {
 
 // ミニマックス戦略に基づいてゲーム木の完全探索をし、最良の手のビット番号を返す
 // 打つ手がない場合は -1 を返す
-// この関数は複数スレッドによって並行処理される
+// この関数は複数スレッドによって並列処理される
 #[no_mangle]
 pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurrency: i32) -> i32 {
     // 打てる手がなければ終了
@@ -468,6 +468,7 @@ pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurre
                 let mut s: u64 = 0;
                 let mut o: u64 = 0;
                 place(myself, opponent, i, &mut s, &mut o);
+                // 並列性を制限
                 if k >= concurrency {
                     receiver.recv().unwrap();
                 } else {
@@ -598,7 +599,7 @@ pub extern "C" fn heuristic_search(myself: u64, opponent: u64, depth: i32) -> i3
 // ミニマックス戦略に基づいてゲーム木の部分探索をし、最良と思われる手のビット番号を返す
 // 打つ手がない場合は -1 を返す
 // depth は先読みの深さで、1以上である必要があり奇数が望ましい
-// この関数は複数スレッドによって並行処理される
+// この関数は複数スレッドによって並列処理される
 #[no_mangle]
 pub extern "C" fn heuristic_search_parallel_with(
     myself: u64,
@@ -626,6 +627,7 @@ pub extern "C" fn heuristic_search_parallel_with(
                 let mut o: u64 = 0;
                 let turns = place(myself, opponent, i, &mut s, &mut o);
                 let opns = openness_evaluation(myself, opponent, turns);
+                // 並列性を制限
                 if k >= concurrency {
                     receiver.recv().unwrap();
                 } else {
@@ -663,7 +665,7 @@ pub extern "C" fn heuristic_search_parallel_with(
 // ミニマックス戦略に基づいてゲーム木の部分探索をし、最良と思われる手のビット番号を返す
 // 打つ手がない場合は -1 を返す
 // depth は先読みの深さで、1以上である必要があり奇数が望ましい
-// この関数はCPUスレッド数のスレッドによって並行処理される
+// この関数はCPUスレッド数のスレッドによって並列処理される
 #[no_mangle]
 pub extern "C" fn heuristic_search_parallel(myself: u64, opponent: u64, depth: i32) -> i32 {
     let cpu_count = num_cpus::get() as i32;
@@ -692,8 +694,8 @@ pub extern "C" fn choose_move(myself: u64, opponent: u64) -> i32 {
 // 打つ手がない場合は -1 を返す
 // ゲームの進行度によって部分探索と完全探索を自動で選択する
 // 切り替えのタイミングと、先読みの深さは数秒で結果が返るような値に調整されている
-// この関数は複数スレッドによって並行処理される
-// 並行処理によって探索にかかる時間が短くなるので非並行版よりも深く読むようにしている
+// この関数は複数スレッドによって並列処理される
+// 並列処理によって探索にかかる時間が短くなるので非並列版よりも深く読むようにしている
 #[no_mangle]
 pub extern "C" fn choose_move_parallel_with(myself: u64, opponent: u64, concurrency: i32) -> i32 {
     let occu = count_bits(myself | opponent);
@@ -717,8 +719,8 @@ pub extern "C" fn choose_move_parallel_with(myself: u64, opponent: u64, concurre
 // 打つ手がない場合は -1 を返す
 // ゲームの進行度によって部分探索と完全探索を自動で選択する
 // 切り替えのタイミングと、先読みの深さは数秒で結果が返るような値に調整されている
-// この関数はCPUスレッド数のスレッドによって並行処理される
-// 並行処理によって探索にかかる時間が短くなるので非並行版よりも深く読むようにしている
+// この関数はCPUスレッド数のスレッドによって並列処理される
+// 並列処理によって探索にかかる時間が短くなるので非並列版よりも深く読むようにしている
 #[no_mangle]
 pub extern "C" fn choose_move_parallel(myself: u64, opponent: u64) -> i32 {
     let cpu_count = num_cpus::get() as i32;
