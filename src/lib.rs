@@ -1297,5 +1297,45 @@ mod tests {
             position_to_index(4, 0),
             heuristic_search_parallel(0x0000_0000_0010_0804, 0x0000_1038_7E6C_3020, 9)
         );
+        assert_eq!(
+            position_to_index(4, 0),
+            heuristic_search_parallel_with(0x0000_0000_0010_0804, 0x0000_1038_7E6C_3020, 9, 1)
+        );
+        assert_eq!(
+            position_to_index(4, 0),
+            heuristic_search_parallel_with(0x0000_0000_0010_0804, 0x0000_1038_7E6C_3020, 9, 2)
+        );
+        assert_eq!(
+            heuristic_search(0x4000_0810_2C44_6073, 0xBCFD_F7EF_D3BB_9F8C, 7),
+            heuristic_search_parallel(0x4000_0810_2C44_6073, 0xBCFD_F7EF_D3BB_9F8C, 7)
+        );
+        assert_eq!(
+            heuristic_search(0xFE04_3878_1850_3818, 0x00F8_C687_E7AF_C0E4, 7),
+            heuristic_search_parallel(0xFE04_3878_1850_3818, 0x00F8_C687_E7AF_C0E4, 7)
+        );
+        assert_eq!(
+            heuristic_search(0x8080_908F_B388_9C80, 0x7E7C_6F70_4C77_637F, 7),
+            heuristic_search_parallel(0x8080_908F_B388_9C80, 0x7E7C_6F70_4C77_637F, 7)
+        );
+        assert_eq!(
+            heuristic_search(0x0010_6341_6D29_0721, 0xBCAC_9CBE_92D6_381E, 7),
+            heuristic_search_parallel(0x0010_6341_6D29_0721, 0xBCAC_9CBE_92D6_381E, 7)
+        );
+        assert_eq!(
+            heuristic_search(0x4000_0810_2C44_6073, 0xBCFD_F7EF_D3BB_9F8C, 9),
+            heuristic_search_parallel(0x4000_0810_2C44_6073, 0xBCFD_F7EF_D3BB_9F8C, 9)
+        );
+        assert_eq!(
+            heuristic_search(0xFE04_3878_1850_3818, 0x00F8_C687_E7AF_C0E4, 9),
+            heuristic_search_parallel(0xFE04_3878_1850_3818, 0x00F8_C687_E7AF_C0E4, 9)
+        );
+        assert_eq!(
+            heuristic_search(0x8080_908F_B388_9C80, 0x7E7C_6F70_4C77_637F, 9),
+            heuristic_search_parallel(0x8080_908F_B388_9C80, 0x7E7C_6F70_4C77_637F, 9)
+        );
+        assert_eq!(
+            heuristic_search(0x0010_6341_6D29_0721, 0xBCAC_9CBE_92D6_381E, 9),
+            heuristic_search_parallel(0x0010_6341_6D29_0721, 0xBCAC_9CBE_92D6_381E, 9)
+        );
     }
 }
