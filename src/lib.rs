@@ -634,6 +634,7 @@ pub extern "C" fn heuristic_search_parallel_with(
                     k += 1;
                 }
                 let sender = sender.clone();
+                // 部分探索のスレッド関数
                 let handle = scope.spawn(move || {
                     let alpha: i32 = INTMIN;
                     let beta: i32 = INTMAX;
