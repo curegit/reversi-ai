@@ -5,31 +5,31 @@ use std::thread;
 const INTMAX: i32 = 2147483647;
 const INTMIN: i32 = -2147483647;
 
-// ビット番号からi座標を返す
+/// ビット番号から i 座標を返す
 #[no_mangle]
 pub extern "C" fn index_to_position_i(n: i32) -> i32 {
     n & 0x07
 }
 
-// ビット番号からj座標を返す
+/// ビット番号から j 座標を返す
 #[no_mangle]
 pub extern "C" fn index_to_position_j(n: i32) -> i32 {
     n >> 3
 }
 
-// 座標位置からビット番号を返す
+/// 座標位置からビット番号を返す
 #[no_mangle]
 pub extern "C" fn position_to_index(i: i32, j: i32) -> i32 {
     (j << 3) | i
 }
 
-// n番目にだけビットを立たせたビットボード表現を返す
+/// n 番目にだけビットを立たせたビットボード表現を返す
 #[no_mangle]
 pub extern "C" fn index_to_bit(n: i32) -> u64 {
     0x01u64 << n
 }
 
-// 特定の座標位置に対応する場所にだけビットを立たせたビットボード表現を返す
+/// 特定の座標位置に対応する場所にだけビットを立たせたビットボード表現を返す
 #[no_mangle]
 pub extern "C" fn position_to_bit(i: i32, j: i32) -> u64 {
     index_to_bit(position_to_index(i, j))
@@ -40,7 +40,7 @@ fn empty_squares(player1: u64, player2: u64) -> u64 {
     !(player1 | player2)
 }
 
-// myselfプレイヤーが着手可能な手のビットボード表現を返す
+/// myself プレイヤーが着手可能な手のビットボード表現を返す
 #[no_mangle]
 pub extern "C" fn possible_moves(myself: u64, opponent: u64) -> u64 {
     let blank = empty_squares(myself, opponent);
@@ -115,7 +115,7 @@ pub extern "C" fn possible_moves(myself: u64, opponent: u64) -> u64 {
     moves & blank
 }
 
-// myselfプレイヤーがindex地点に打ったときに返せる石のビットボード表現を返す
+/// myself プレイヤーが index 地点に打ったときに返せる石のビットボード表現を返す
 #[no_mangle]
 pub extern "C" fn turnovers(myself: u64, opponent: u64, index: i32) -> u64 {
     let mut turns = 0x00;
@@ -205,13 +205,13 @@ pub extern "C" fn turnovers(myself: u64, opponent: u64, index: i32) -> u64 {
     turns
 }
 
-// myselfプレイヤーがindex地点に打てるかどうかを返す
+/// myself プレイヤーが index 地点に打てるかどうかを返す
 #[no_mangle]
 pub extern "C" fn can_place(myself: u64, opponent: u64, index: i32) -> i32 {
     (possible_moves(myself, opponent) & index_to_bit(index) != 0) as i32
 }
 
-// myselfプレイヤーがindex地点に打ったときに得られる盤を可変参照によって代入し、返した石のビットボード表現を返す
+/// myself プレイヤーが index 地点に打ったときに得られる盤を可変参照によって代入し、返した石のビットボード表現を返す
 #[no_mangle]
 pub extern "C" fn place(
     myself: u64,
@@ -226,7 +226,7 @@ pub extern "C" fn place(
     turns
 }
 
-// 立っているビットの数を返す
+/// 立っているビットの数を返す
 #[no_mangle]
 pub extern "C" fn count_bits(n: u64) -> i32 {
     let mut n = n;
@@ -239,13 +239,13 @@ pub extern "C" fn count_bits(n: u64) -> i32 {
     n as i32
 }
 
-// myselfプレイヤーの石の数からopponentプレイヤーの石の数を引いたものを返す
+/// myself プレイヤーの石の数から opponent プレイヤーの石の数を引いたものを返す
 #[no_mangle]
 pub extern "C" fn balance(myself: u64, opponent: u64) -> i32 {
     count_bits(myself) - count_bits(opponent)
 }
 
-// 有利なほど大きいように盤上の位置ごとにつけられた重みを用いて、石のある位置の重みの和を返す
+/// 有利なほど大きいように盤上の位置ごとにつけられた重みを用いて、石のある位置の重みの和を返す
 #[no_mangle]
 pub extern "C" fn sum_of_weights(disks: u64) -> i32 {
     const W1: [i32; 256] = [
@@ -339,7 +339,7 @@ pub extern "C" fn sum_of_weights(disks: u64) -> i32 {
         + W1[(disks >> 56) as usize]
 }
 
-// myselfプレイヤーに有利なほど大きな数が返る静的評価関数
+/// myself プレイヤーに有利なほど大きな数が返る静的評価関数
 #[no_mangle]
 pub extern "C" fn evaluation(myself: u64, opponent: u64) -> i32 {
     let b = count_bits(myself | opponent);
@@ -349,7 +349,7 @@ pub extern "C" fn evaluation(myself: u64, opponent: u64) -> i32 {
             - count_bits(possible_moves(opponent, myself)))
 }
 
-// turns周りの開放度を返す
+/// turns 周りの開放度を返す
 #[no_mangle]
 pub extern "C" fn openness(myself: u64, opponent: u64, turns: u64) -> i32 {
     let blank = empty_squares(myself, opponent);
@@ -367,7 +367,7 @@ pub extern "C" fn openness(myself: u64, opponent: u64, turns: u64) -> i32 {
     o
 }
 
-// 係数を掛けた開放度の負値を返す
+/// 係数を掛けた開放度の負値を返す
 #[no_mangle]
 pub extern "C" fn openness_evaluation(myself: u64, opponent: u64, turns: u64) -> i32 {
     // 開放度に掛ける適当な係数
@@ -411,8 +411,9 @@ fn full_search_sub(myself: u64, opponent: u64, alpha: i32, beta: i32) -> i32 {
     }
 }
 
-// ミニマックス戦略に基づいてゲーム木の完全探索をし、最良の手のビット番号を返す
-// 打つ手がない場合は -1 を返す
+/// ミニマックス戦略に基づいてゲーム木の完全探索をし、最良の手のビット番号を返す
+///
+/// 打つ手がない場合は -1 を返す
 #[no_mangle]
 pub extern "C" fn full_search(myself: u64, opponent: u64) -> i32 {
     let moves = possible_moves(myself, opponent);
@@ -444,9 +445,11 @@ pub extern "C" fn full_search(myself: u64, opponent: u64) -> i32 {
     chosen
 }
 
-// ミニマックス戦略に基づいてゲーム木の完全探索をし、最良の手のビット番号を返す
-// 打つ手がない場合は -1 を返す
-// この関数は複数スレッドによって並列処理される
+/// ミニマックス戦略に基づいてゲーム木の完全探索をし、最良の手のビット番号を返す
+///
+/// 打つ手がない場合は -1 を返す
+///
+/// この関数は複数スレッドによって並列処理される
 #[no_mangle]
 pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurrency: i32) -> i32 {
     // 打てる手がなければ終了
@@ -504,8 +507,9 @@ pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurre
     result
 }
 
-// ミニマックス戦略に基づいてゲーム木の完全探索をし、最良の手のビット番号を返す
-// 打つ手がない場合は -1 を返す
+/// ミニマックス戦略に基づいてゲーム木の完全探索をし、最良の手のビット番号を返す
+///
+/// 打つ手がない場合は -1 を返す
 #[no_mangle]
 pub extern "C" fn full_search_parallel(myself: u64, opponent: u64) -> i32 {
     let cpu_count = num_cpus::get() as i32;
@@ -561,6 +565,11 @@ fn heuristic_search_sub(myself: u64, opponent: u64, depth: i32, alpha: i32, beta
     }
 }
 
+/// ミニマックス戦略に基づいてゲーム木の部分探索をし、最良と思われる手のビット番号を返す
+///
+/// 打つ手がない場合は -1 を返す
+///
+/// depth は先読みの深さで、1以上である必要があり奇数が望ましい
 #[no_mangle]
 pub extern "C" fn heuristic_search(myself: u64, opponent: u64, depth: i32) -> i32 {
     // 打てる手がなければ終了
@@ -596,10 +605,13 @@ pub extern "C" fn heuristic_search(myself: u64, opponent: u64, depth: i32) -> i3
     chosen
 }
 
-// ミニマックス戦略に基づいてゲーム木の部分探索をし、最良と思われる手のビット番号を返す
-// 打つ手がない場合は -1 を返す
-// depth は先読みの深さで、1以上である必要があり奇数が望ましい
-// この関数は複数スレッドによって並列処理される
+/// ミニマックス戦略に基づいてゲーム木の部分探索をし、最良と思われる手のビット番号を返す
+///
+/// 打つ手がない場合は -1 を返す
+///
+/// depth は先読みの深さで、1以上である必要があり奇数が望ましい
+///
+/// この関数は複数スレッドによって並列処理される
 #[no_mangle]
 pub extern "C" fn heuristic_search_parallel_with(
     myself: u64,
@@ -663,20 +675,26 @@ pub extern "C" fn heuristic_search_parallel_with(
     result
 }
 
-// ミニマックス戦略に基づいてゲーム木の部分探索をし、最良と思われる手のビット番号を返す
-// 打つ手がない場合は -1 を返す
-// depth は先読みの深さで、1以上である必要があり奇数が望ましい
-// この関数はCPUスレッド数のスレッドによって並列処理される
+/// ミニマックス戦略に基づいてゲーム木の部分探索をし、最良と思われる手のビット番号を返す
+///
+/// 打つ手がない場合は -1 を返す
+///
+/// depth は先読みの深さで、1以上である必要があり奇数が望ましい
+///
+/// この関数は CPU スレッド数のスレッドによって並列処理される
 #[no_mangle]
 pub extern "C" fn heuristic_search_parallel(myself: u64, opponent: u64, depth: i32) -> i32 {
     let cpu_count = num_cpus::get() as i32;
     heuristic_search_parallel_with(myself, opponent, depth, cpu_count)
 }
 
-// ミニマックス戦略に基づいてゲーム木の探索をし、最良と思われる手のビット番号を返す
-// 打つ手がない場合は -1 を返す
-// ゲームの進行度によって部分探索と完全探索を自動で選択する
-// 切り替えのタイミングと、先読みの深さは数秒で結果が返るような値に調整されている
+/// ミニマックス戦略に基づいてゲーム木の探索をし、最良と思われる手のビット番号を返す
+///
+/// 打つ手がない場合は -1 を返す
+///
+/// ゲームの進行度によって部分探索と完全探索を自動で選択する
+///
+/// 切り替えのタイミングと、先読みの深さは数秒で結果が返るような値に調整されている
 #[no_mangle]
 pub extern "C" fn choose_move(myself: u64, opponent: u64) -> i32 {
     let occu = count_bits(myself | opponent);
@@ -691,12 +709,17 @@ pub extern "C" fn choose_move(myself: u64, opponent: u64) -> i32 {
     }
 }
 
-// ミニマックス戦略に基づいてゲーム木の探索をし、最良と思われる手のビット番号を返す
-// 打つ手がない場合は -1 を返す
-// ゲームの進行度によって部分探索と完全探索を自動で選択する
-// 切り替えのタイミングと、先読みの深さは数秒で結果が返るような値に調整されている
-// この関数は複数スレッドによって並列処理される
-// 並列処理によって探索にかかる時間が短くなるので非並列版よりも深く読むようにしている
+/// ミニマックス戦略に基づいてゲーム木の探索をし、最良と思われる手のビット番号を返す
+///
+/// 打つ手がない場合は -1 を返す
+///
+/// ゲームの進行度によって部分探索と完全探索を自動で選択する
+///
+/// 切り替えのタイミングと、先読みの深さは数秒で結果が返るような値に調整されている
+///
+/// この関数は複数スレッドによって並列処理される
+///
+/// 並列処理によって探索にかかる時間が短くなるので非並列版よりも深く読むようにしている
 #[no_mangle]
 pub extern "C" fn choose_move_parallel_with(myself: u64, opponent: u64, concurrency: i32) -> i32 {
     let occu = count_bits(myself | opponent);
@@ -716,12 +739,17 @@ pub extern "C" fn choose_move_parallel_with(myself: u64, opponent: u64, concurre
     }
 }
 
-// ミニマックス戦略に基づいてゲーム木の探索をし、最良と思われる手のビット番号を返す
-// 打つ手がない場合は -1 を返す
-// ゲームの進行度によって部分探索と完全探索を自動で選択する
-// 切り替えのタイミングと、先読みの深さは数秒で結果が返るような値に調整されている
-// この関数はCPUスレッド数のスレッドによって並列処理される
-// 並列処理によって探索にかかる時間が短くなるので非並列版よりも深く読むようにしている
+/// ミニマックス戦略に基づいてゲーム木の探索をし、最良と思われる手のビット番号を返す
+///
+/// 打つ手がない場合は -1 を返す
+///
+/// ゲームの進行度によって部分探索と完全探索を自動で選択する
+///
+/// 切り替えのタイミングと、先読みの深さは数秒で結果が返るような値に調整されている
+///
+/// この関数は CPU スレッド数のスレッドによって並列処理される
+///
+/// 並列処理によって探索にかかる時間が短くなるので非並列版よりも深く読むようにしている
 #[no_mangle]
 pub extern "C" fn choose_move_parallel(myself: u64, opponent: u64) -> i32 {
     let cpu_count = num_cpus::get() as i32;
