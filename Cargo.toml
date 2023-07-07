@@ -8,9 +8,8 @@ readme = "README.md"
 publish = false
 
 [lib]
-name = "ReversiAiDll"
-crate-type = ["cdylib"]
-doc = false
+crate-type = ["rlib", "cdylib"]
+doctest = false
 
 [dependencies]
 num_cpus = "1.16.0"
