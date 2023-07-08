@@ -1,6 +1,6 @@
 # Reversi AI
 
-Heuristic Reversi AI implemented as a Rust "cdylib" library
+Heuristic Reversi AI implemented as a Rust and Rust "cdylib" library
 
 This project is a ported version of the original [Reversi AI DLL for Windows](https://github.com/curegit/reversi-ai-dll).
 
