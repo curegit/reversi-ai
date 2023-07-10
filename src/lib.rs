@@ -211,7 +211,7 @@ pub extern "C" fn can_place(myself: u64, opponent: u64, index: i32) -> i32 {
     (possible_moves(myself, opponent) & index_to_bit(index) != 0) as i32
 }
 
-/// myself プレイヤーが index 地点に打ったときに得られる盤を可変参照によって代入し、返した石のビットボード表現を返す
+/// myself プレイヤーが index 地点に打ったときに得られる盤を可変参照によって変更し、返した石のビットボード表現を戻り値で返す
 #[no_mangle]
 pub extern "C" fn place(
     myself: u64,
@@ -569,7 +569,7 @@ fn heuristic_search_sub(myself: u64, opponent: u64, depth: i32, alpha: i32, beta
 ///
 /// 打つ手がない場合は -1 を返す
 ///
-/// depth は先読みの深さで、1以上である必要があり奇数が望ましい
+/// depth は先読みの深さで、1 以上である必要があり奇数が望ましい
 #[no_mangle]
 pub extern "C" fn heuristic_search(myself: u64, opponent: u64, depth: i32) -> i32 {
     // 打てる手がなければ終了
@@ -609,7 +609,7 @@ pub extern "C" fn heuristic_search(myself: u64, opponent: u64, depth: i32) -> i3
 ///
 /// 打つ手がない場合は -1 を返す
 ///
-/// depth は先読みの深さで、1以上である必要があり奇数が望ましい
+/// depth は先読みの深さで、1 以上である必要があり奇数が望ましい
 ///
 /// この関数は複数スレッドによって並列処理される
 #[no_mangle]
@@ -679,7 +679,7 @@ pub extern "C" fn heuristic_search_parallel_with(
 ///
 /// 打つ手がない場合は -1 を返す
 ///
-/// depth は先読みの深さで、1以上である必要があり奇数が望ましい
+/// depth は先読みの深さで、1 以上である必要があり奇数が望ましい
 ///
 /// この関数は CPU スレッド数のスレッドによって並列処理される
 #[no_mangle]
