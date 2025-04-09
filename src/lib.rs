@@ -6,31 +6,31 @@ const INTMAX: i32 = 2147483647;
 const INTMIN: i32 = -2147483647;
 
 /// ビット番号から i 座標を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn index_to_position_i(n: i32) -> i32 {
     n & 0x07
 }
 
 /// ビット番号から j 座標を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn index_to_position_j(n: i32) -> i32 {
     n >> 3
 }
 
 /// 座標位置からビット番号を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn position_to_index(i: i32, j: i32) -> i32 {
     (j << 3) | i
 }
 
 /// n 番目にだけビットを立たせたビットボード表現を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn index_to_bit(n: i32) -> u64 {
     0x01u64 << n
 }
 
 /// 特定の座標位置に対応する場所にだけビットを立たせたビットボード表現を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn position_to_bit(i: i32, j: i32) -> u64 {
     index_to_bit(position_to_index(i, j))
 }
@@ -41,7 +41,7 @@ fn empty_squares(player1: u64, player2: u64) -> u64 {
 }
 
 /// myself プレイヤーが着手可能な手のビットボード表現を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn possible_moves(myself: u64, opponent: u64) -> u64 {
     let blank = empty_squares(myself, opponent);
     let opp = opponent & 0x7E7E7E7E7E7E7E7E;
@@ -116,7 +116,7 @@ pub extern "C" fn possible_moves(myself: u64, opponent: u64) -> u64 {
 }
 
 /// myself プレイヤーが index 地点に打ったときに返せる石のビットボード表現を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn turnovers(myself: u64, opponent: u64, index: i32) -> u64 {
     let mut turns = 0x00;
     let pos = index_to_bit(index);
@@ -206,13 +206,13 @@ pub extern "C" fn turnovers(myself: u64, opponent: u64, index: i32) -> u64 {
 }
 
 /// myself プレイヤーが index 地点に打てるかどうかを返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn can_place(myself: u64, opponent: u64, index: i32) -> i32 {
     (possible_moves(myself, opponent) & index_to_bit(index) != 0) as i32
 }
 
 /// myself プレイヤーが index 地点に打ったときに得られる盤を可変参照によって変更し、返した石のビットボード表現を戻り値で返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn place(
     myself: u64,
     opponent: u64,
@@ -227,7 +227,7 @@ pub extern "C" fn place(
 }
 
 /// 立っているビットの数を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn count_bits(n: u64) -> i32 {
     let mut n = n;
     n = ((n & 0xAAAA_AAAA_AAAA_AAAA) >> 1) + (n & 0x5555_5555_5555_5555);
@@ -240,13 +240,13 @@ pub extern "C" fn count_bits(n: u64) -> i32 {
 }
 
 /// myself プレイヤーの石の数から opponent プレイヤーの石の数を引いたものを返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn balance(myself: u64, opponent: u64) -> i32 {
     count_bits(myself) - count_bits(opponent)
 }
 
 /// 有利なほど大きいように盤上の位置ごとにつけられた重みを用いて、石のある位置の重みの和を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn sum_of_weights(disks: u64) -> i32 {
     const W1: [i32; 256] = [
         0, 10000, -3000, 7000, 1000, 11000, -2000, 8000, 800, 10800, -2200, 7800, 1800, 11800,
@@ -340,7 +340,7 @@ pub extern "C" fn sum_of_weights(disks: u64) -> i32 {
 }
 
 /// myself プレイヤーに有利なほど大きな数が返る静的評価関数
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn evaluation(myself: u64, opponent: u64) -> i32 {
     let b = count_bits(myself | opponent);
     let k = 50 * b;
@@ -350,7 +350,7 @@ pub extern "C" fn evaluation(myself: u64, opponent: u64) -> i32 {
 }
 
 /// turns 周りの開放度を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn openness(myself: u64, opponent: u64, turns: u64) -> i32 {
     let blank = empty_squares(myself, opponent);
     let blae = blank & 0x7F7F7F7F7F7F7F7F;
@@ -368,7 +368,7 @@ pub extern "C" fn openness(myself: u64, opponent: u64, turns: u64) -> i32 {
 }
 
 /// 係数を掛けた開放度の負値を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn openness_evaluation(myself: u64, opponent: u64, turns: u64) -> i32 {
     // 開放度に掛ける適当な係数
     const K: i32 = 10;
@@ -414,7 +414,7 @@ fn full_search_sub(myself: u64, opponent: u64, alpha: i32, beta: i32) -> i32 {
 /// ミニマックス戦略に基づいてゲーム木の完全探索をし、最良の手のビット番号を返す
 ///
 /// 打つ手がない場合は -1 を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn full_search(myself: u64, opponent: u64) -> i32 {
     let moves = possible_moves(myself, opponent);
     if moves == 0 {
@@ -450,7 +450,7 @@ pub extern "C" fn full_search(myself: u64, opponent: u64) -> i32 {
 /// 打つ手がない場合は -1 を返す
 ///
 /// この関数は複数スレッドによって並列処理される
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurrency: i32) -> i32 {
     // 打てる手がなければ終了
     let moves = possible_moves(myself, opponent);
@@ -510,7 +510,7 @@ pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurre
 /// ミニマックス戦略に基づいてゲーム木の完全探索をし、最良の手のビット番号を返す
 ///
 /// 打つ手がない場合は -1 を返す
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn full_search_parallel(myself: u64, opponent: u64) -> i32 {
     let cpu_count = num_cpus::get() as i32;
     full_search_parallel_with(myself, opponent, cpu_count)
@@ -570,7 +570,7 @@ fn heuristic_search_sub(myself: u64, opponent: u64, depth: i32, alpha: i32, beta
 /// 打つ手がない場合は -1 を返す
 ///
 /// depth は先読みの深さで、1 以上である必要があり奇数が望ましい
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn heuristic_search(myself: u64, opponent: u64, depth: i32) -> i32 {
     // 打てる手がなければ終了
     let moves = possible_moves(myself, opponent);
@@ -612,7 +612,7 @@ pub extern "C" fn heuristic_search(myself: u64, opponent: u64, depth: i32) -> i3
 /// depth は先読みの深さで、1 以上である必要があり奇数が望ましい
 ///
 /// この関数は複数スレッドによって並列処理される
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn heuristic_search_parallel_with(
     myself: u64,
     opponent: u64,
@@ -682,7 +682,7 @@ pub extern "C" fn heuristic_search_parallel_with(
 /// depth は先読みの深さで、1 以上である必要があり奇数が望ましい
 ///
 /// この関数は CPU スレッド数のスレッドによって並列処理される
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn heuristic_search_parallel(myself: u64, opponent: u64, depth: i32) -> i32 {
     let cpu_count = num_cpus::get() as i32;
     heuristic_search_parallel_with(myself, opponent, depth, cpu_count)
@@ -695,7 +695,7 @@ pub extern "C" fn heuristic_search_parallel(myself: u64, opponent: u64, depth: i
 /// ゲームの進行度によって部分探索と完全探索を自動で選択する
 ///
 /// 切り替えのタイミングと、先読みの深さは数秒で結果が返るような値に調整されている
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn choose_move(myself: u64, opponent: u64) -> i32 {
     let occu = count_bits(myself | opponent);
     if occu > 50 {
@@ -720,7 +720,7 @@ pub extern "C" fn choose_move(myself: u64, opponent: u64) -> i32 {
 /// この関数は複数スレッドによって並列処理される
 ///
 /// 並列処理によって探索にかかる時間が短くなるので非並列版よりも深く読むようにしている
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn choose_move_parallel_with(myself: u64, opponent: u64, concurrency: i32) -> i32 {
     let occu = count_bits(myself | opponent);
     if occu > 48 {
@@ -750,7 +750,7 @@ pub extern "C" fn choose_move_parallel_with(myself: u64, opponent: u64, concurre
 /// この関数は CPU スレッド数のスレッドによって並列処理される
 ///
 /// 並列処理によって探索にかかる時間が短くなるので非並列版よりも深く読むようにしている
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn choose_move_parallel(myself: u64, opponent: u64) -> i32 {
     let cpu_count = num_cpus::get() as i32;
     choose_move_parallel_with(myself, opponent, cpu_count)
