@@ -27,3 +27,5 @@ cargo test
 ## License
 
 [Apache License 2.0](LICENSE)
+
+Copyright (C) 2025 curegit
