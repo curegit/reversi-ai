@@ -1,5 +1,7 @@
 use std::cmp::max;
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::mpsc;
+#[cfg(not(target_arch = "wasm32"))]
 use std::thread;
 
 const INTMAX: i32 = 2147483647;
@@ -450,6 +452,7 @@ pub extern "C" fn full_search(myself: u64, opponent: u64) -> i32 {
 /// 打つ手がない場合は -1 を返す
 ///
 /// この関数は複数スレッドによって並列処理される
+#[cfg(not(target_arch = "wasm32"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurrency: i32) -> i32 {
     // 打てる手がなければ終了
@@ -510,6 +513,7 @@ pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurre
 /// ミニマックス戦略に基づいてゲーム木の完全探索をし、最良の手のビット番号を返す
 ///
 /// 打つ手がない場合は -1 を返す
+#[cfg(not(target_arch = "wasm32"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn full_search_parallel(myself: u64, opponent: u64) -> i32 {
     let cpu_count = num_cpus::get() as i32;
@@ -612,6 +616,7 @@ pub extern "C" fn heuristic_search(myself: u64, opponent: u64, depth: i32) -> i3
 /// depth は先読みの深さで、1 以上である必要があり奇数が望ましい
 ///
 /// この関数は複数スレッドによって並列処理される
+#[cfg(not(target_arch = "wasm32"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn heuristic_search_parallel_with(
     myself: u64,
@@ -682,6 +687,7 @@ pub extern "C" fn heuristic_search_parallel_with(
 /// depth は先読みの深さで、1 以上である必要があり奇数が望ましい
 ///
 /// この関数は CPU スレッド数のスレッドによって並列処理される
+#[cfg(not(target_arch = "wasm32"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn heuristic_search_parallel(myself: u64, opponent: u64, depth: i32) -> i32 {
     let cpu_count = num_cpus::get() as i32;
@@ -720,6 +726,7 @@ pub extern "C" fn choose_move(myself: u64, opponent: u64) -> i32 {
 /// この関数は複数スレッドによって並列処理される
 ///
 /// 並列処理によって探索にかかる時間が短くなるので非並列版よりも深く読むようにしている
+#[cfg(not(target_arch = "wasm32"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn choose_move_parallel_with(myself: u64, opponent: u64, concurrency: i32) -> i32 {
     let occu = count_bits(myself | opponent);
@@ -750,6 +757,7 @@ pub extern "C" fn choose_move_parallel_with(myself: u64, opponent: u64, concurre
 /// この関数は CPU スレッド数のスレッドによって並列処理される
 ///
 /// 並列処理によって探索にかかる時間が短くなるので非並列版よりも深く読むようにしている
+#[cfg(not(target_arch = "wasm32"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn choose_move_parallel(myself: u64, opponent: u64) -> i32 {
     let cpu_count = num_cpus::get() as i32;
