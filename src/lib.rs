@@ -560,10 +560,10 @@ fn heuristic_search_sub(myself: u64, opponent: u64, depth: i32, alpha: i32, beta
                 evaluation(myself, opponent)
             }
         } else {
-            if balance(myself, opponent) > 0 {
-                CONFIDENT_VICTORY
-            } else {
-                -CONFIDENT_VICTORY
+            match balance(myself, opponent).cmp(&0) {
+                std::cmp::Ordering::Greater => CONFIDENT_VICTORY,
+                std::cmp::Ordering::Equal => 0,
+                std::cmp::Ordering::Less => -CONFIDENT_VICTORY,
             }
         }
     }
@@ -1337,6 +1337,14 @@ mod tests {
         assert_eq!(
             heuristic_search(0x0010_6341_6D29_0721, 0xBCAC_9CBE_92D6_381E, 9),
             heuristic_search_parallel(0x0010_6341_6D29_0721, 0xBCAC_9CBE_92D6_381E, 9)
+        );
+    }
+
+    #[test]
+    fn heuristic_search_prefers_win_over_draw_test() {
+        assert_eq!(
+            position_to_index(7, 0),
+            heuristic_search(0xF13A_240B_0D05_8900, 0x0605_DA34_F2F8_743E, 11)
         );
     }
 }
