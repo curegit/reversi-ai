@@ -1272,6 +1272,11 @@ mod tests {
             position_to_index(1, 6),
             full_search(0x0010_6341_6D29_0721, 0xBCAC_9CBE_92D6_381E)
         );
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn full_search_parallel_test() {
         assert_eq!(
             position_to_index(0, 7),
             full_search_parallel(0x4000_0810_2C44_6073, 0xBCFD_F7EF_D3BB_9F8C)
@@ -1296,6 +1301,11 @@ mod tests {
             position_to_index(4, 0),
             heuristic_search(0x0000_0000_0010_0804, 0x0000_1038_7E6C_3020, 9)
         );
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn heuristic_search_parallel_test() {
         assert_eq!(
             position_to_index(4, 0),
             heuristic_search_parallel(0x0000_0000_0010_0804, 0x0000_1038_7E6C_3020, 9)
