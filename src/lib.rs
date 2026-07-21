@@ -455,6 +455,7 @@ pub extern "C" fn full_search(myself: u64, opponent: u64) -> i32 {
 #[cfg(not(target_arch = "wasm32"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn full_search_parallel_with(myself: u64, opponent: u64, concurrency: i32) -> i32 {
+    let concurrency = max(concurrency, 1);
     // 打てる手がなければ終了
     let moves = possible_moves(myself, opponent);
     if moves == 0 {
@@ -624,6 +625,7 @@ pub extern "C" fn heuristic_search_parallel_with(
     depth: i32,
     concurrency: i32,
 ) -> i32 {
+    let concurrency = max(concurrency, 1);
     // 打てる手がなければ終了
     let moves = possible_moves(myself, opponent);
     if moves == 0 {
